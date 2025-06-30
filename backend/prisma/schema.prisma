@@ -1,0 +1,85 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  avatar    String?
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  conversations Conversation[]
+
+  @@map("users")
+}
+
+model Conversation {
+  id        String            @id @default(cuid())
+  userId    String
+  channel   ConversationChannel @default(WEB)
+  status    ConversationStatus  @default(OPEN)
+  rating    Int?              // 1-5 rating
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  // Relaciones
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@map("conversations")
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  content        String
+  role           MessageRole
+  promptUsed     String?  // El prompt que se usó para generar esta respuesta (solo para AI)
+  responseTime   Int?     // Tiempo de respuesta en milisegundos (solo para AI)
+  createdAt      DateTime @default(now())
+
+  // Relaciones
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model Prompt {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  content     String
+  isActive    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("prompts")
+}
+
+enum ConversationChannel {
+  WEB
+  WHATSAPP
+  INSTAGRAM
+}
+
+enum ConversationStatus {
+  OPEN
+  CLOSED
+}
+
+enum MessageRole {
+  USER
+  AI
+} 
