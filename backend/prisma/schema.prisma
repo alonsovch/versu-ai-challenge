@@ -58,7 +58,7 @@ model Message {
 
 model Prompt {
   id          String   @id @default(cuid())
-  name        String
+  name        String   @unique
   description String?
   content     String
   isActive    Boolean  @default(false)
