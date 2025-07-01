@@ -5,7 +5,7 @@ export interface AuthUser {
   id: string;
   email: string;
   name: string;
-  avatar?: string;
+  avatar: string | null;
 }
 
 export interface AuthRequest extends Request {
@@ -139,7 +139,7 @@ export interface AIConfig {
 export interface PromptConfig {
   id: string;
   name: string;
-  description?: string;
+  description: string | null;
   content: string;
   isActive: boolean;
 }
