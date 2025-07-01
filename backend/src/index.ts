@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import dotenv from 'dotenv';
+import apiRoutes from './routes';
 
 // Configurar variables de entorno
 dotenv.config();
@@ -40,16 +41,36 @@ app.get('/health', (req, res) => {
 });
 
 // API routes
-app.use('/api', (req, res) => {
-  res.status(200).json({ 
-    message: 'Versu AI API - Coming Soon',
-    version: '1.0.0'
-  });
-});
+app.use('/api', apiRoutes);
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {
   console.log(`Cliente conectado: ${socket.id}`);
+
+  // Eventos de conversaciones
+  socket.on('join_conversation', (data) => {
+    socket.join(`conversation_${data.conversationId}`);
+    console.log(`Cliente ${socket.id} se unió a conversación ${data.conversationId}`);
+  });
+
+  socket.on('leave_conversation', (data) => {
+    socket.leave(`conversation_${data.conversationId}`);
+    console.log(`Cliente ${socket.id} dejó conversación ${data.conversationId}`);
+  });
+
+  socket.on('typing_start', (data) => {
+    socket.to(`conversation_${data.conversationId}`).emit('typing_indicator', {
+      conversationId: data.conversationId,
+      isTyping: true
+    });
+  });
+
+  socket.on('typing_stop', (data) => {
+    socket.to(`conversation_${data.conversationId}`).emit('typing_indicator', {
+      conversationId: data.conversationId,
+      isTyping: false
+    });
+  });
 
   socket.on('disconnect', () => {
     console.log(`Cliente desconectado: ${socket.id}`);

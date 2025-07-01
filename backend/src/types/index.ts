@@ -136,12 +136,21 @@ export interface AIConfig {
   temperature: number;
 }
 
-export interface PromptConfig {
+export interface PromptDto {
   id: string;
   name: string;
   description: string | null;
   content: string;
   isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PromptConfig {
+  name: string;
+  description?: string | null;
+  content: string;
+  isActive?: boolean;
 }
 
 // WebSocket events
