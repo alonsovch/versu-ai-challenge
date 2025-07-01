@@ -2,13 +2,11 @@ import React from 'react';
 import Button from '../atoms/Button';
 
 interface EmptyStateProps {
-  icon?: string;
+  icon?: string | React.ComponentType<{ className?: string }>;
   title: string;
   description: string;
-  action?: {
-    label: string;
-    onClick: () => void;
-  };
+  actionLabel?: string;
+  onAction?: () => void;
   className?: string;
 }
 
@@ -16,12 +14,26 @@ const EmptyState: React.FC<EmptyStateProps> = ({
   icon = '📭',
   title,
   description,
-  action,
+  actionLabel,
+  onAction,
   className
 }) => {
+  const renderIcon = () => {
+    if (typeof icon === 'string') {
+      return <div className="text-6xl mb-4">{icon}</div>;
+    }
+    
+    const IconComponent = icon;
+    return (
+      <div className="text-gray-400 mb-4">
+        <IconComponent className="w-16 h-16 mx-auto" />
+      </div>
+    );
+  };
+
   return (
     <div className={`text-center py-12 ${className || ''}`}>
-      <div className="text-6xl mb-4">{icon}</div>
+      {renderIcon()}
       
       <h3 className="text-lg font-medium text-gray-900 mb-2">
         {title}
@@ -31,12 +43,12 @@ const EmptyState: React.FC<EmptyStateProps> = ({
         {description}
       </p>
       
-      {action && (
+      {actionLabel && onAction && (
         <Button
           variant="primary"
-          onClick={action.onClick}
+          onClick={onAction}
         >
-          {action.label}
+          {actionLabel}
         </Button>
       )}
     </div>

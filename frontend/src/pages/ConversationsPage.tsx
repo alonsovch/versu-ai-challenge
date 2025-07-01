@@ -246,10 +246,8 @@ const ConversationsPage: React.FC = () => {
                 icon="💬"
                 title="No hay conversaciones"
                 description="No se encontraron conversaciones con los filtros seleccionados. Intenta ajustar los filtros o crea una nueva conversación."
-                action={{
-                  label: "Nueva Conversación",
-                  onClick: handleCreateConversation
-                }}
+                actionLabel="Nueva Conversación"
+                onAction={handleCreateConversation}
               />
             )}
           </div>

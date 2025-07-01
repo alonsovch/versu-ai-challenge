@@ -171,12 +171,10 @@ const DashboardPage: React.FC = () => {
                     icon="💬"
                     title="No hay conversaciones"
                     description="Aún no tienes conversaciones. Crea tu primera conversación para comenzar."
-                    action={{
-                      label: "Nueva Conversación",
-                      onClick: () => {
-                        // TODO: Implementar creación de conversación
-                        console.log('Crear nueva conversación');
-                      }
+                    actionLabel="Nueva Conversación"
+                    onAction={() => {
+                      // TODO: Implementar creación de conversación
+                      console.log('Crear nueva conversación');
                     }}
                   />
                 )}
