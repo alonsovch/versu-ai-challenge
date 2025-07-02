@@ -1,6 +1,9 @@
-FROM node:18-alpine
+FROM node:18
 
 WORKDIR /app
+
+# Actualizar paquetes del sistema
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 # Instalar dependencias globales necesarias
 RUN npm install -g prisma

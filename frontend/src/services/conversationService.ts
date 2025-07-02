@@ -7,7 +7,8 @@ import type {
   RateConversationRequest,
   ConversationFilters,
   PaginatedResponse,
-  DashboardMetrics
+  DashboardMetrics,
+  AnalyticsData
 } from '../types';
 
 export class ConversationService {
@@ -91,6 +92,18 @@ export class ConversationService {
   }
 
   /**
+   * Obtener datos de analytics completos
+   */
+  async getAnalytics(startDate?: string, endDate?: string): Promise<AnalyticsData> {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    
+    const response = await apiClient.get(`/conversations/analytics?${params}`);
+    return extractData<{ analytics: AnalyticsData }>(response).analytics;
+  }
+
+  /**
    * Obtener conversaciones recientes (helper)
    */
   async getRecentConversations(limit: number = 5): Promise<Conversation[]> {
@@ -119,6 +132,14 @@ export class ConversationService {
     
     const response = await apiClient.get(`/conversations/search?${params.toString()}`);
     return extractData<PaginatedResponse<Conversation>>(response);
+  }
+
+  /**
+   * Obtener mensajes de una conversación específica
+   */
+  async getMessages(conversationId: string): Promise<Message[]> {
+    const response = await apiClient.get(`/conversations/${conversationId}/messages`);
+    return extractData<{ messages: Message[] }>(response).messages;
   }
 }
 

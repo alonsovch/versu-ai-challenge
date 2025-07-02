@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useActivePrompts } from '../hooks/usePrompts';
 import Button from '../components/atoms/Button';
 import Input from '../components/atoms/Input';
 import Avatar from '../components/atoms/Avatar';
@@ -265,59 +266,117 @@ const SettingsPage: React.FC = () => {
     </div>
   );
 
-  const renderAISection = () => (
-    <div className="space-y-6">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Velocidad de Respuesta de IA
-        </label>
-        <select
-          value={formData.aiResponseSpeed}
-          onChange={(e) => handleInputChange('aiResponseSpeed', e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        >
-          <option value="fast">Rápida (respuestas más directas)</option>
-          <option value="balanced">Balanceada (recomendado)</option>
-          <option value="detailed">Detallada (respuestas más elaboradas)</option>
-        </select>
-      </div>
+  const renderAISection = () => {
+    const { data: promptsData, isLoading: promptsLoading } = useActivePrompts();
+    const prompts = promptsData || [];
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Personalidad de la IA
-        </label>
-        <select
-          value={formData.aiPersonality}
-          onChange={(e) => handleInputChange('aiPersonality', e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        >
-          <option value="professional">Profesional</option>
-          <option value="friendly">Amigable</option>
-          <option value="casual">Casual</option>
-          <option value="formal">Formal</option>
-        </select>
-      </div>
-
-      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+    return (
+      <div className="space-y-6">
+        {/* Configuración de prompts */}
         <div>
-          <h4 className="font-medium text-gray-900">Auto-guardar Conversaciones</h4>
-          <p className="text-sm text-gray-500">Guarda automáticamente el progreso de las conversaciones</p>
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            Prompts Disponibles
+          </label>
+          <p className="text-sm text-gray-500 mb-4">
+            Selecciona qué prompt debe usar la IA para responder. Cada prompt tiene una personalidad diferente.
+          </p>
+          
+          {promptsLoading ? (
+            <div className="text-center py-4">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="text-sm text-gray-500 mt-2">Cargando prompts...</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {prompts.map((prompt) => (
+                <div
+                  key={prompt.id}
+                  className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                    prompt.isActive 
+                      ? 'border-blue-500 bg-blue-50' 
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                  onClick={() => {
+                    // TODO: Implementar cambio de prompt activo
+                    console.log('Seleccionando prompt:', prompt.id);
+                  }}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-3 h-3 rounded-full ${
+                          prompt.isActive ? 'bg-blue-500' : 'bg-gray-300'
+                        }`}></div>
+                        <h4 className="font-medium text-gray-900">
+                          {prompt.name}
+                        </h4>
+                        {prompt.isActive && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            Activo
+                          </span>
+                        )}
+                      </div>
+                      
+                      {prompt.description && (
+                        <p className="text-sm text-gray-600 mt-1 ml-6">
+                          {prompt.description}
+                        </p>
+                      )}
+                      
+                      <div className="mt-2 ml-6">
+                        <details className="text-sm">
+                          <summary className="cursor-pointer text-blue-600 hover:text-blue-500">
+                            Ver contenido del prompt
+                          </summary>
+                          <div className="mt-2 p-3 bg-gray-50 rounded border text-gray-700 font-mono text-xs">
+                            {prompt.content}
+                          </div>
+                        </details>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-        <button
-          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-            formData.autoSave ? 'bg-blue-600' : 'bg-gray-200'
-          }`}
-          onClick={() => handleInputChange('autoSave', !formData.autoSave)}
-        >
-          <span
-            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-              formData.autoSave ? 'translate-x-6' : 'translate-x-1'
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Velocidad de Respuesta de IA
+          </label>
+          <select
+            value={formData.aiResponseSpeed}
+            onChange={(e) => handleInputChange('aiResponseSpeed', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="fast">Rápida (respuestas más directas)</option>
+            <option value="balanced">Balanceada (recomendado)</option>
+            <option value="detailed">Detallada (respuestas más elaboradas)</option>
+          </select>
+        </div>
+
+        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+          <div>
+            <h4 className="font-medium text-gray-900">Auto-guardar Conversaciones</h4>
+            <p className="text-sm text-gray-500">Guarda automáticamente el progreso de las conversaciones</p>
+          </div>
+          <button
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              formData.autoSave ? 'bg-blue-600' : 'bg-gray-200'
             }`}
-          />
-        </button>
+            onClick={() => handleInputChange('autoSave', !formData.autoSave)}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                formData.autoSave ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderAppearanceSection = () => (
     <div className="space-y-6">

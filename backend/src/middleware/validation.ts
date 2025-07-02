@@ -108,8 +108,8 @@ export const validationSchemas = {
       'string.max': 'El mensaje no puede exceder 2000 caracteres',
       'any.required': 'El contenido del mensaje es requerido'
     }),
-    conversationId: Joi.string().required().messages({
-      'any.required': 'El ID de conversación es requerido'
+    promptId: Joi.string().optional().messages({
+      'string.base': 'El ID del prompt debe ser una cadena válida'
     })
   }),
 
@@ -138,6 +138,8 @@ export const validationSchemas = {
   conversationFilters: Joi.object({
     page: Joi.number().integer().min(1).default(1),
     limit: Joi.number().integer().min(1).max(100).default(10),
+    sortBy: Joi.string().valid('createdAt', 'updatedAt', 'rating').default('createdAt'),
+    sortOrder: Joi.string().valid('asc', 'desc').default('desc'),
     channel: Joi.string().valid('WEB', 'WHATSAPP', 'INSTAGRAM').optional(),
     status: Joi.string().valid('OPEN', 'CLOSED').optional(),
     minRating: Joi.number().integer().min(1).max(5).optional(),

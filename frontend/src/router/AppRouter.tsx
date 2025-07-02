@@ -3,14 +3,14 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 // Importar componentes de páginas (las crearemos después)
-import LoginPage from '../pages/LoginPage';
-import RegisterPage from '../pages/RegisterPage';
-import DashboardPage from '../pages/DashboardPage';
-import ConversationsPage from '../pages/ConversationsPage';
-import ChatPage from '../pages/ChatPage';
-import AnalyticsPage from '../pages/AnalyticsPage';
-import SettingsPage from '../pages/SettingsPage';
-import NotFoundPage from '../pages/NotFoundPage';
+import LoginPage from '@/pages/LoginPage';
+import RegisterPage from '@/pages/RegisterPage';
+import DashboardPage from '@/pages/DashboardPage';
+import ConversationsPage from '@/pages/ConversationsPage';
+import ChatPage from '@/pages/ChatPage';
+import AnalyticsPage from '@/pages/AnalyticsPage';
+import SettingsPage from '@/pages/SettingsPage';
+import NotFoundPage from '@/pages/NotFoundPage';
 
 // Componente para proteger rutas que requieren autenticación
 interface ProtectedRouteProps {

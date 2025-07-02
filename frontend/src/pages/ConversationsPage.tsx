@@ -1,24 +1,41 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useConversations, useCreateConversation } from '../hooks/useConversations';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useConversations, useCreateConversation, useInvalidateConversations } from '../hooks/useConversations';
 import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/atoms/Button';
+import Avatar from '../components/atoms/Avatar';
 import Input from '../components/atoms/Input';
 import ConversationCard from '../components/molecules/ConversationCard';
 import EmptyState from '../components/molecules/EmptyState';
 import Spinner from '../components/atoms/Spinner';
 import { ConversationChannel, ConversationStatus } from '../types';
+import { formatDistanceToNow } from 'date-fns';
+import { es } from 'date-fns/locale';
+import clsx from 'clsx';
+import { 
+  PlusIcon, 
+  ChatBubbleBottomCenterTextIcon,
+  FunnelIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  ArrowPathIcon
+} from '@heroicons/react/24/outline';
 
 const ConversationsPage: React.FC = () => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const { invalidateList } = useInvalidateConversations();
   
   // Estados para filtros
-  const [filters, setFilters] = useState({
-    channel: '' as ConversationChannel | '',
-    status: '' as ConversationStatus | '',
-    minRating: '',
+  const [filters, setFilters] = useState<{
+    page: number;
+    limit: number;
+    channel?: string;
+    status?: string;
+    minRating?: string;
+  }>({
     page: 1,
-    limit: 10
+    limit: 10,
   });
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,23 +49,31 @@ const ConversationsPage: React.FC = () => {
   };
 
   // Hooks
-  const { data: conversationsData, isLoading, error, refetch } = useConversations(apiFilters);
+  const { data: conversationsData, isLoading, error, refetch } = useConversations({
+    ...filters,
+    channel: filters.channel as ConversationChannel | undefined,
+    status: filters.status as ConversationStatus | undefined,
+    minRating: filters.minRating ? Number(filters.minRating) : undefined
+  });
   const createConversationMutation = useCreateConversation();
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({
       ...prev,
-      [key]: value,
-      page: 1 // Reset page when changing filters
+      [key]: key === 'page' ? Number(value) : value,
+      // Reset to page 1 when changing other filters
+      ...(key !== 'page' && { page: 1 })
     }));
   };
 
   const handleCreateConversation = async () => {
     try {
-      await createConversationMutation.mutateAsync({
+      const newConversation = await createConversationMutation.mutateAsync({
         channel: ConversationChannel.WEB // Default to WEB channel
       });
       refetch();
+      // Navegar inmediatamente al chat de la nueva conversación
+      navigate(`/chat/${newConversation.id}`);
     } catch (error) {
       console.error('Error creando conversación:', error);
     }
@@ -61,6 +86,34 @@ const ConversationsPage: React.FC = () => {
       console.error('Error en logout:', error);
     }
   };
+
+  const handleRatingChange = async (conversationId: string, rating: number) => {
+    try {
+      // Aquí iría la llamada al API para actualizar el rating
+      console.log(`Updating conversation ${conversationId} rating to ${rating}`);
+      // Por ahora solo log, luego implementaremos el endpoint
+    } catch (error) {
+      console.error('Error actualizando rating:', error);
+    }
+  };
+
+  // Refresh automático cuando la página se vuelve visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        invalidateList();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // También refrescar al montar el componente
+    invalidateList();
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [invalidateList]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -78,16 +131,58 @@ const ConversationsPage: React.FC = () => {
             </div>
             
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">
-                {user?.name}
-              </span>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleLogout}
-              >
-                Cerrar Sesión
-              </Button>
+              <nav className="hidden md:flex space-x-4">
+                <Link
+                  to="/dashboard"
+                  className="text-gray-600 hover:text-gray-900"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  to="/conversations" 
+                  className="text-blue-600 font-medium"
+                >
+                  Conversaciones
+                </Link>
+                <Link
+                  to="/analytics"
+                  className="text-gray-600 hover:text-gray-900"
+                >
+                  Analytics
+                </Link>
+                <Link
+                  to="/settings"
+                  className="text-gray-600 hover:text-gray-900"
+                >
+                  Configuración
+                </Link>
+              </nav>
+              
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-3">
+                  <Avatar 
+                    name={user?.name || 'Usuario'} 
+                    src={user?.avatar}
+                    size="md"
+                  />
+                  <div className="hidden md:block">
+                    <p className="text-sm font-medium text-gray-900">
+                      {user?.name}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {user?.email}
+                    </p>
+                  </div>
+                </div>
+                
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleLogout}
+                >
+                  Cerrar Sesión
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -209,11 +304,12 @@ const ConversationsPage: React.FC = () => {
                 </div>
 
                 {/* Grid de conversaciones */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-stretch">
                   {conversationsData.data.map((conversation) => (
                     <ConversationCard
                       key={conversation.id}
                       conversation={conversation}
+                      onRatingChange={handleRatingChange}
                     />
                   ))}
                 </div>
@@ -225,7 +321,7 @@ const ConversationsPage: React.FC = () => {
                       variant="secondary"
                       size="sm"
                       disabled={conversationsData.pagination.page === 1}
-                      onClick={() => handleFilterChange('page', String(filters.page - 1))}
+                      onClick={() => handleFilterChange('page', String(conversationsData.pagination.page - 1))}
                     >
                       Anterior
                     </Button>
@@ -234,7 +330,7 @@ const ConversationsPage: React.FC = () => {
                       variant="secondary"
                       size="sm"
                       disabled={conversationsData.pagination.page === conversationsData.pagination.totalPages}
-                      onClick={() => handleFilterChange('page', String(filters.page + 1))}
+                      onClick={() => handleFilterChange('page', String(conversationsData.pagination.page + 1))}
                     >
                       Siguiente
                     </Button>

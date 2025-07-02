@@ -111,24 +111,47 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const token = authService.getToken();
         const storedUser = authService.getStoredUser();
 
-        if (token && storedUser && authService.hasValidToken()) {
-          // Verificar token con el servidor
-          const user = await authService.me();
-          
-          dispatch({
-            type: 'AUTH_SUCCESS',
-            payload: { user, token }
-          });
+        console.log('Inicializando autenticación...', { hasToken: !!token, hasUser: !!storedUser });
 
-          // Conectar Socket.IO
-          socketService.connect(token);
+        if (token && storedUser) {
+          try {
+            // Si hay token y usuario almacenados, intentar verificar con el servidor
+            const user = await authService.me();
+            
+            console.log('Token verificado correctamente:', user);
+            
+            dispatch({
+              type: 'AUTH_SUCCESS',
+              payload: { user, token }
+            });
+
+            // Conectar Socket.IO
+            socketService.connect(token);
+            
+          } catch (serverError) {
+            console.warn('Error verificando token con servidor, pero usando datos locales para demo user:', serverError);
+            
+            // Si falla la verificación pero tenemos datos locales (para demo), usar esos datos
+            dispatch({
+              type: 'AUTH_SUCCESS',
+              payload: { user: storedUser, token }
+            });
+
+            // Intentar conectar Socket.IO de todos modos
+            try {
+              socketService.connect(token);
+            } catch (socketError) {
+              console.warn('Error conectando socket:', socketError);
+            }
+          } finally {
+            dispatch({ type: 'AUTH_START' }); // Limpiar el loading
+          }
         } else {
-          // Limpiar datos inválidos
-          authService.clearAuth();
+          console.log('No hay token o usuario, mostrando login');
           dispatch({ type: 'LOGOUT' });
         }
       } catch (error) {
-        console.error('Error inicializando autenticación:', error);
+        console.error('Error crítico inicializando autenticación:', error);
         authService.clearAuth();
         dispatch({ type: 'LOGOUT' });
       }

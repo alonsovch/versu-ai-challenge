@@ -8,7 +8,8 @@ import {
   MessageRole, 
   CreateConversationDto,
   PaginatedResponse,
-  DashboardMetrics 
+  DashboardMetrics,
+  AnalyticsData
 } from '../types';
 
 export class ConversationService {
@@ -83,8 +84,7 @@ export class ConversationService {
       where,
       include: {
         messages: {
-          orderBy: { createdAt: 'desc' },
-          take: 1, // Solo el último mensaje para preview
+          orderBy: { createdAt: 'asc' }, // Ordenar para calcular duración
         },
         _count: {
           select: { messages: true }
@@ -98,7 +98,7 @@ export class ConversationService {
     const data = conversations.map(conv => ({
       ...this.toConversationDto(conv),
       messageCount: conv._count.messages,
-      lastMessage: conv.messages[0]?.content || undefined,
+      lastMessage: conv.messages.length > 0 ? conv.messages[conv.messages.length - 1]?.content : undefined,
     }));
 
     return {
@@ -245,19 +245,17 @@ export class ConversationService {
    * Cerrar conversación
    */
   async closeConversation(conversationId: string, userId: string): Promise<ConversationDto> {
-    const conversation = await prisma.conversation.findFirst({
-      where: { id: conversationId, userId }
-    });
-
+    const conversation = await this.getConversationById(conversationId, userId);
+    
     if (!conversation) {
       throw new Error('Conversación no encontrada');
     }
 
     const updatedConversation = await prisma.conversation.update({
       where: { id: conversationId },
-      data: { status: ConversationStatus.CLOSED },
-      include: {
-        messages: true
+      data: { 
+        status: ConversationStatus.CLOSED,
+        updatedAt: new Date()
       }
     });
 
@@ -344,9 +342,154 @@ export class ConversationService {
   }
 
   /**
+   * Obtener datos de analytics completos
+   */
+  async getAnalyticsData(userId?: string, startDate?: Date, endDate?: Date): Promise<AnalyticsData> {
+    const where: any = userId ? { userId } : {};
+    
+    // Agregar filtros de fecha si se proporcionan
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) where.createdAt.gte = startDate;
+      if (endDate) where.createdAt.lte = endDate;
+    }
+
+    // Distribución de ratings
+    const ratingStats = await prisma.conversation.groupBy({
+      by: ['rating'],
+      where: { ...where, rating: { not: null } },
+      _count: { rating: true }
+    });
+
+    const totalRated = ratingStats.reduce((sum, stat) => sum + stat._count.rating, 0);
+    const ratingDistribution = ratingStats.map(stat => ({
+      rating: stat.rating!,
+      count: stat._count.rating,
+      percentage: totalRated > 0 ? (stat._count.rating / totalRated) * 100 : 0
+    }));
+
+    // Distribución por canal
+    const channelStats = await prisma.conversation.groupBy({
+      by: ['channel'],
+      where,
+      _count: { channel: true }
+    });
+
+    const totalConversations = channelStats.reduce((sum, stat) => sum + stat._count.channel, 0);
+    const channelDistribution = channelStats.map(stat => ({
+      channel: stat.channel as ConversationChannel,
+      count: stat._count.channel,
+      percentage: totalConversations > 0 ? (stat._count.channel / totalConversations) * 100 : 0
+    }));
+
+    // Top 5 prompts con PEOR rating (como pide el README)
+    const promptStats = await prisma.message.groupBy({
+      by: ['promptUsed'],
+      where: {
+        role: MessageRole.AI,
+        promptUsed: { not: null },
+        conversation: where
+      },
+      _count: { promptUsed: true }
+    });
+
+    // Obtener ratings promedio por prompt
+    const promptRatings = await Promise.all(
+      promptStats.map(async (stat) => {
+        const conversationsWithPrompt = await prisma.conversation.aggregate({
+          where: {
+            ...where,
+            rating: { not: null },
+            messages: {
+              some: {
+                promptUsed: stat.promptUsed,
+                role: MessageRole.AI
+              }
+            }
+          },
+          _avg: { rating: true },
+          _count: { rating: true }
+        });
+
+        return {
+          prompt: stat.promptUsed!,
+          averageRating: conversationsWithPrompt._avg.rating || 0,
+          usageCount: stat._count.promptUsed,
+          ratedConversations: conversationsWithPrompt._count.rating
+        };
+      })
+    );
+
+    // Filtrar solo prompts con conversaciones calificadas y ordenar por PEOR rating
+    const topWorstPrompts = promptRatings
+      .filter(p => p.ratedConversations > 0)
+      .sort((a, b) => a.averageRating - b.averageRating) // Ascendente = peor primero
+      .slice(0, 5)
+      .map(p => ({
+        prompt: p.prompt,
+        averageRating: p.averageRating,
+        usageCount: p.usageCount,
+        ratedConversations: p.ratedConversations
+      }));
+
+    return {
+      ratingDistribution,
+      channelDistribution,
+      topWorstPrompts
+    };
+  }
+
+  /**
+   * Obtener mensajes de una conversación específica
+   */
+  async getConversationMessages(conversationId: string, userId: string): Promise<MessageDto[]> {
+    // Verificar que el usuario tenga acceso a la conversación
+    const conversation = await this.getConversationById(conversationId, userId);
+    
+    if (!conversation) {
+      throw new Error('Conversación no encontrada');
+    }
+
+    const messages = await prisma.message.findMany({
+      where: { conversationId },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    return messages.map(message => ({
+      id: message.id,
+      conversationId: message.conversationId,
+      content: message.content,
+      role: message.role as MessageRole, // Cast explícito para evitar conflictos de tipos
+      promptUsed: message.promptUsed || undefined,
+      responseTime: message.responseTime || undefined,
+      createdAt: message.createdAt.toISOString()
+    }));
+  }
+
+  /**
    * Convertir entity de Prisma a DTO
    */
   private toConversationDto(conversation: any): ConversationDto {
+    // Calcular duración de la conversación
+    let duration: number | undefined;
+    
+    if (conversation.messages && conversation.messages.length > 0) {
+      // Si hay mensajes, duración = tiempo entre primer y último mensaje
+      const firstMessage = conversation.messages[0];
+      const lastMessage = conversation.messages[conversation.messages.length - 1];
+      
+      const startTime = new Date(firstMessage.createdAt).getTime();
+      const endTime = new Date(lastMessage.createdAt).getTime();
+      duration = Math.floor((endTime - startTime) / 1000); // En segundos
+    } else {
+      // Si no hay mensajes, duración = tiempo desde creación hasta ahora (si está abierta) o última actualización
+      const startTime = new Date(conversation.createdAt).getTime();
+      const endTime = conversation.status === 'CLOSED' 
+        ? new Date(conversation.updatedAt).getTime()
+        : Date.now();
+      duration = Math.floor((endTime - startTime) / 1000); // En segundos
+    }
+
     return {
       id: conversation.id,
       userId: conversation.userId,
@@ -355,6 +498,7 @@ export class ConversationService {
       rating: conversation.rating,
       createdAt: conversation.createdAt.toISOString(),
       updatedAt: conversation.updatedAt.toISOString(),
+      duration: Math.max(duration, 0), // Asegurar que no sea negativo
     };
   }
 

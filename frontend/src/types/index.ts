@@ -47,6 +47,7 @@ export interface Conversation {
   rating?: number;
   createdAt: string;
   updatedAt: string;
+  duration?: number;
   messageCount?: number;
   lastMessage?: string;
 }
@@ -129,6 +130,7 @@ export interface AnalyticsData {
     prompt: string;
     averageRating: number;
     usageCount: number;
+    ratedConversations: number;
   }>;
 }
 

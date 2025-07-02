@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useConversationMetrics, useConversations } from '../hooks/useConversations';
 import { useActivePrompts } from '../hooks/usePrompts';
@@ -12,6 +12,7 @@ import Spinner from '../components/atoms/Spinner';
 
 const DashboardPage: React.FC = () => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   
   // Hooks para obtener datos
   const { data: metrics, isLoading: metricsLoading, error: metricsError } = useConversationMetrics();
@@ -60,6 +61,33 @@ const DashboardPage: React.FC = () => {
             </div>
             
             <div className="flex items-center space-x-4">
+              <nav className="hidden md:flex space-x-4">
+                <Link
+                  to="/dashboard" 
+                  className="text-blue-600 font-medium"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  to="/conversations"
+                  className="text-gray-600 hover:text-gray-900"
+                >
+                  Conversaciones
+                </Link>
+                <Link
+                  to="/analytics"
+                  className="text-gray-600 hover:text-gray-900"
+                >
+                  Analytics
+                </Link>
+                <Link
+                  to="/settings"
+                  className="text-gray-600 hover:text-gray-900"
+                >
+                  Configuración
+                </Link>
+              </nav>
+              
               <div className="flex items-center space-x-3">
                 <Avatar 
                   name={user?.name || 'Usuario'} 
@@ -117,7 +145,7 @@ const DashboardPage: React.FC = () => {
 
             <MetricCard
               title="Satisfacción"
-              value={metrics ? `${(metrics.satisfactionRate * 100).toFixed(1)}%` : '0%'}
+              value={metrics ? `${(metrics.satisfactionRate).toFixed(1)}%` : '0%'}
               icon="⭐"
               loading={metricsLoading}
             />
@@ -172,10 +200,7 @@ const DashboardPage: React.FC = () => {
                     title="No hay conversaciones"
                     description="Aún no tienes conversaciones. Crea tu primera conversación para comenzar."
                     actionLabel="Nueva Conversación"
-                    onAction={() => {
-                      // TODO: Implementar creación de conversación
-                      console.log('Crear nueva conversación');
-                    }}
+                    onAction={() => navigate('/conversations')}
                   />
                 )}
               </div>
@@ -217,20 +242,6 @@ const DashboardPage: React.FC = () => {
                     </span>
                   </div>
                 </div>
-              </div>
-
-              {/* Estado del progreso */}
-              <div className="mt-6 bg-blue-50 rounded-lg p-4">
-                <h4 className="text-sm font-medium text-blue-900 mb-2">
-                  🚀 Estado del Proyecto
-                </h4>
-                <p className="text-sm text-blue-700">
-                  <strong>Fase 4 en progreso:</strong> Dashboard funcional completándose...
-                </p>
-                <div className="mt-2 bg-blue-200 rounded-full h-2">
-                  <div className="bg-blue-600 h-2 rounded-full" style={{ width: '75%' }}></div>
-                </div>
-                <p className="text-xs text-blue-600 mt-1">75% completado</p>
               </div>
             </div>
           </div>

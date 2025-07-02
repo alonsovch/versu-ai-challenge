@@ -1,23 +1,29 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useChat } from '../hooks/useChat';
+import { useCloseConversation, useRateConversation } from '../hooks/useConversations';
 import { ChatHeader } from '../components/molecules/ChatHeader';
 import { MessageBubble } from '../components/molecules/MessageBubble';
 import { MessageInput } from '../components/molecules/MessageInput';
 import { TypingIndicator } from '../components/molecules/TypingIndicator';
 import EmptyState from '../components/molecules/EmptyState';
 import Spinner from '../components/atoms/Spinner';
+import Button from '../components/atoms/Button';
 import { 
   ChatBubbleBottomCenterTextIcon,
   ExclamationTriangleIcon,
-  WifiIcon
+  WifiIcon,
+  StarIcon
 } from '@heroicons/react/24/outline';
+import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
 export const ChatPage: React.FC = () => {
   const { conversationId } = useParams<{ conversationId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [showCloseModal, setShowCloseModal] = useState(false);
+  const [rating, setRating] = useState(0);
 
   // Verificar que tenemos conversationId
   if (!conversationId) {
@@ -42,6 +48,9 @@ export const ChatPage: React.FC = () => {
     autoConnect: true
   });
 
+  const closeConversationMutation = useCloseConversation();
+  const rateConversationMutation = useRateConversation();
+
   // Redirigir si no hay conversación después de cargar
   useEffect(() => {
     if (!isLoading && !conversation) {
@@ -54,8 +63,29 @@ export const ChatPage: React.FC = () => {
   };
 
   const handleCloseConversation = () => {
-    // TODO: Implementar cerrar conversación
-    navigate('/conversations');
+    if (conversation?.status === 'OPEN') {
+      setShowCloseModal(true);
+    } else {
+      navigate('/conversations');
+    }
+  };
+
+  const handleConfirmClose = async () => {
+    try {
+      await closeConversationMutation.mutateAsync(conversationId);
+      
+      if (rating > 0) {
+        await rateConversationMutation.mutateAsync({
+          conversationId,
+          rating
+        });
+      }
+      
+      setShowCloseModal(false);
+      navigate('/conversations');
+    } catch (error) {
+      console.error('Error cerrando conversación:', error);
+    }
   };
 
   const handleSendMessage = (content: string) => {
@@ -186,14 +216,80 @@ export const ChatPage: React.FC = () => {
       <MessageInput
         onSendMessage={handleSendMessage}
         onTyping={handleTyping}
-        disabled={!isConnected}
+        disabled={!isConnected || conversation?.status === 'CLOSED'}
         isLoading={isSending}
         placeholder={
-          !isConnected 
+          conversation?.status === 'CLOSED'
+            ? "Esta conversación está cerrada"
+            : !isConnected 
             ? "Conectando..." 
             : "Escribe tu mensaje..."
         }
       />
+
+      {/* Modal para cerrar conversación */}
+      {showCloseModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              Cerrar Conversación
+            </h3>
+            
+            <p className="text-gray-600 mb-6">
+              ¿Estás seguro de que quieres cerrar esta conversación? Opcionalmente puedes calificarla del 1 al 5.
+            </p>
+
+            {/* Rating Stars */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Calificación (opcional)
+              </label>
+              <div className="flex space-x-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    onClick={() => setRating(star)}
+                    className="p-1 hover:scale-110 transition-transform"
+                  >
+                    {star <= rating ? (
+                      <StarIconSolid className="w-6 h-6 text-yellow-400" />
+                    ) : (
+                      <StarIcon className="w-6 h-6 text-gray-300 hover:text-yellow-400" />
+                    )}
+                  </button>
+                ))}
+              </div>
+              {rating > 0 && (
+                <p className="text-sm text-gray-500 mt-1">
+                  Calificación: {rating} estrella{rating !== 1 ? 's' : ''}
+                </p>
+              )}
+            </div>
+
+            <div className="flex space-x-3">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setShowCloseModal(false);
+                  setRating(0);
+                }}
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+              
+              <Button
+                variant="primary"
+                onClick={handleConfirmClose}
+                loading={closeConversationMutation.isPending || rateConversationMutation.isPending}
+                className="flex-1"
+              >
+                Cerrar Conversación
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -34,12 +34,39 @@ export const useChat = (options: UseChatOptions) => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Función para scroll automático (definir antes de usar)
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ 
+      behavior: 'smooth',
+      block: 'end'
+    });
+  }, []);
+
   // Query para obtener conversación existente
   const { data: conversation, isLoading: conversationLoading } = useQuery({
     queryKey: ['conversation', conversationId],
     queryFn: () => conversationService.getConversation(conversationId),
     enabled: !!conversationId
   });
+
+  // Query para obtener mensajes existentes
+  const { data: existingMessages, isLoading: messagesLoading } = useQuery({
+    queryKey: ['messages', conversationId],
+    queryFn: () => conversationService.getMessages(conversationId),
+    enabled: !!conversationId,
+    staleTime: 1000 * 60 * 1, // 1 minuto
+  });
+
+  // Cargar mensajes existentes cuando se obtienen
+  useEffect(() => {
+    if (existingMessages && existingMessages.length > 0) {
+      setChatState(prev => ({
+        ...prev,
+        messages: existingMessages
+      }));
+      scrollToBottom();
+    }
+  }, [existingMessages, scrollToBottom]);
 
   // Mutación para enviar mensajes
   const sendMessageMutation = useMutation({
@@ -84,6 +111,8 @@ export const useChat = (options: UseChatOptions) => {
 
       // Invalidar queries relacionadas
       queryClient.invalidateQueries({ queryKey: ['conversation', conversationId] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
     },
     onError: (error, _variables, context) => {
       // Remover mensaje temporal en caso de error
@@ -95,14 +124,6 @@ export const useChat = (options: UseChatOptions) => {
       }));
     }
   });
-
-  // Función para scroll automático
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ 
-      behavior: 'smooth',
-      block: 'end'
-    });
-  }, []);
 
   // Enviar mensaje
   const sendMessage = useCallback((content: string, promptId?: string) => {
@@ -195,7 +216,7 @@ export const useChat = (options: UseChatOptions) => {
     // Estado
     conversation,
     messages: chatState.messages,
-    isLoading: conversationLoading || chatState.isLoading,
+    isLoading: conversationLoading || messagesLoading || chatState.isLoading,
     isConnected: chatState.isConnected,
     isTyping: chatState.isTyping,
     error: chatState.error,

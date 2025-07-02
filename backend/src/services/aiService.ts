@@ -3,18 +3,18 @@ import prisma from '../utils/database';
 import { PromptConfig, MessageRole } from '../types';
 
 export class AIService {
-  private readonly openaiApiKey: string;
+  private readonly apiKey: string;
   private readonly apiUrl: string;
   private readonly model: string;
 
   constructor() {
-    this.openaiApiKey = process.env.OPENAI_API_KEY || '';
-    this.apiUrl = 'https://api.openai.com/v1/chat/completions';
-    this.model = 'gpt-3.5-turbo'; // Usando el modelo gratuito/más barato
+    this.apiKey = process.env.OPENAI_API_KEY || ''; // Usamos la misma variable para Groq
+    this.apiUrl = 'https://api.groq.com/openai/v1/chat/completions'; // URL de Groq
+    this.model = 'llama-3.1-8b-instant'; // Modelo actual y rápido de Groq
   }
 
   /**
-   * Generar respuesta de IA
+   * Generar respuesta de IA usando Groq
    */
   async generateResponse(
     userMessage: string, 
@@ -48,7 +48,7 @@ export class AIService {
         take: 10, // Últimos 10 mensajes para contexto
       });
 
-      // Construir mensajes para OpenAI
+      // Construir mensajes para Groq (compatible con OpenAI)
       const messages = [
         {
           role: 'system',
@@ -66,20 +66,21 @@ export class AIService {
         }
       ];
 
-      // Llamar a OpenAI API
+      // Llamar a Groq API (compatible con OpenAI)
       const response = await axios.post(
         this.apiUrl,
         {
           model: this.model,
           messages: messages,
-          max_tokens: 500,
+          max_tokens: 1000, // Groq permite más tokens
           temperature: 0.7,
           frequency_penalty: 0.5,
-          presence_penalty: 0.0
+          presence_penalty: 0.0,
+          stream: false
         },
         {
           headers: {
-            'Authorization': `Bearer ${this.openaiApiKey}`,
+            'Authorization': `Bearer ${this.apiKey}`,
             'Content-Type': 'application/json'
           },
           timeout: 30000 // 30 segundos timeout
@@ -95,14 +96,23 @@ export class AIService {
         responseTime
       };
 
-    } catch (error) {
-      console.error('Error generando respuesta de IA:', error);
+    } catch (error: any) {
+      console.error('Error generando respuesta de IA con Groq:', error);
+      
+      // Log más detallado del error
+      if (error.response) {
+        console.error('Error response data:', error.response.data);
+        console.error('Error response status:', error.response.status);
+        console.error('Error response headers:', error.response.headers);
+      }
       
       const responseTime = Date.now() - startTime;
       
-      // Respuesta de fallback
+      // Respuesta de fallback más informativa
       return {
-        content: 'Lo siento, estoy experimentando dificultades técnicas. Por favor intenta de nuevo más tarde.',
+        content: `Lo siento, estoy experimentando dificultades técnicas con Groq. 
+                 Error: ${error.response?.data?.error?.message || error.message || 'Error desconocido'}
+                 Por favor intenta de nuevo más tarde.`,
         promptUsed: 'fallback',
         responseTime
       };
@@ -196,10 +206,10 @@ export class AIService {
    * Verificar configuración de API
    */
   async validateConfiguration(): Promise<{ isValid: boolean; message: string }> {
-    if (!this.openaiApiKey) {
+    if (!this.apiKey) {
       return {
         isValid: false,
-        message: 'API Key de OpenAI no configurada'
+        message: 'API Key de Groq no configurada'
       };
     }
 
@@ -214,7 +224,7 @@ export class AIService {
         },
         {
           headers: {
-            'Authorization': `Bearer ${this.openaiApiKey}`,
+            'Authorization': `Bearer ${this.apiKey}`,
             'Content-Type': 'application/json'
           },
           timeout: 10000

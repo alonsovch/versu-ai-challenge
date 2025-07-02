@@ -81,6 +81,7 @@ export interface ConversationDto {
   rating?: number;
   createdAt: string;
   updatedAt: string;
+  duration?: number; // Duración en segundos
   messageCount?: number;
   lastMessage?: string;
 }
@@ -124,6 +125,7 @@ export interface AnalyticsData {
     prompt: string;
     averageRating: number;
     usageCount: number;
+    ratedConversations: number;
   }>;
 }
 

@@ -44,6 +44,15 @@ export function useConversationMetrics() {
   });
 }
 
+// Hook para obtener analytics
+export function useConversationAnalytics(startDate?: string, endDate?: string) {
+  return useQuery({
+    queryKey: [...conversationKeys.all, 'analytics', startDate, endDate],
+    queryFn: () => conversationService.getAnalytics(startDate, endDate),
+    staleTime: 1000 * 60 * 2, // 2 minutos
+  });
+}
+
 // Hook para crear conversación
 export function useCreateConversation() {
   const queryClient = useQueryClient();
@@ -111,4 +120,21 @@ export function useCloseConversation() {
       queryClient.invalidateQueries({ queryKey: conversationKeys.metrics() });
     },
   });
+}
+
+// Hook para invalidar queries manualmente (útil para actualizaciones en tiempo real)
+export function useInvalidateConversations() {
+  const queryClient = useQueryClient();
+  
+  return {
+    invalidateList: () => {
+      queryClient.invalidateQueries({ queryKey: conversationKeys.lists() });
+    },
+    invalidateAll: () => {
+      queryClient.invalidateQueries({ queryKey: conversationKeys.all });
+    },
+    invalidateMetrics: () => {
+      queryClient.invalidateQueries({ queryKey: conversationKeys.metrics() });
+    }
+  };
 } 

@@ -96,6 +96,41 @@ export class ConversationController {
   };
 
   /**
+   * Obtener mensajes de una conversación específica
+   * GET /api/conversations/:id/messages
+   */
+  getMessages = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const { id: conversationId } = req.params;
+      const userId = req.user!.id;
+
+      const messages = await this.conversationService.getConversationMessages(conversationId, userId);
+
+      res.status(200).json({
+        success: true,
+        data: { messages },
+        message: 'Mensajes obtenidos exitosamente'
+      } as ApiResponse);
+
+    } catch (error: any) {
+      console.error('Error obteniendo mensajes:', error);
+
+      if (error.message === 'Conversación no encontrada') {
+        res.status(404).json({
+          success: false,
+          error: 'Conversación no encontrada'
+        } as ApiResponse);
+        return;
+      }
+
+      res.status(500).json({
+        success: false,
+        error: 'Error interno del servidor'
+      } as ApiResponse);
+    }
+  };
+
+  /**
    * Enviar mensaje en una conversación
    * POST /api/conversations/:id/messages
    */
@@ -256,6 +291,36 @@ export class ConversationController {
 
     } catch (error) {
       console.error('Error obteniendo métricas globales:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Error interno del servidor'
+      } as ApiResponse);
+    }
+  };
+
+  /**
+   * Obtener datos de analytics completos
+   * GET /api/conversations/analytics
+   */
+  getAnalytics = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const userId = req.user!.id;
+      const { startDate, endDate } = req.query;
+
+      // Convertir fechas si se proporcionan
+      const start = startDate ? new Date(startDate as string) : undefined;
+      const end = endDate ? new Date(endDate as string) : undefined;
+
+      const analytics = await this.conversationService.getAnalyticsData(userId, start, end);
+
+      res.status(200).json({
+        success: true,
+        data: { analytics },
+        message: 'Analytics obtenidos exitosamente'
+      } as ApiResponse);
+
+    } catch (error) {
+      console.error('Error obteniendo analytics:', error);
       res.status(500).json({
         success: false,
         error: 'Error interno del servidor'

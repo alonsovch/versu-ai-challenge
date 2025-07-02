@@ -12,6 +12,7 @@ router.use(authenticate);
 
 // Rutas especiales (deben ir antes de las rutas con parámetros)
 router.get('/metrics', conversationController.getMetrics);
+router.get('/analytics', conversationController.getAnalytics);
 router.get('/metrics/global', conversationController.getGlobalMetrics);
 
 // Rutas principales
@@ -32,6 +33,12 @@ router.get(
   '/:id',
   validateParams(validationSchemas.mongoId),
   conversationController.getConversation
+);
+
+router.get(
+  '/:id/messages',
+  validateParams(validationSchemas.mongoId),
+  conversationController.getMessages
 );
 
 router.post(

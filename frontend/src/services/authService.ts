@@ -82,14 +82,32 @@ export class AuthService {
    * Crear usuario demo (solo para desarrollo)
    */
   async createDemoUser(): Promise<AuthResponse> {
-    const response = await apiClient.post('/auth/demo');
-    const authData = extractData<AuthResponse>(response);
-    
-    // Guardar token y usuario en localStorage
-    localStorage.setItem('authToken', authData.token);
-    localStorage.setItem('user', JSON.stringify(authData.user));
-    
-    return authData;
+    try {
+      const response = await apiClient.post('/auth/demo');
+      const authData = extractData<AuthResponse>(response);
+      
+      // Guardar token y usuario en localStorage
+      localStorage.setItem('authToken', authData.token);
+      localStorage.setItem('user', JSON.stringify(authData.user));
+      
+      return authData;
+    } catch (error) {
+      // Si falla, crear datos demo locales (fallback)
+      const demoAuthData: AuthResponse = {
+        user: {
+          id: 'demo-user-local',
+          name: 'Usuario Demo Local',
+          email: 'demo@versu.ai',
+          avatar: undefined
+        },
+        token: 'demo-token-local-' + Date.now()
+      };
+      
+      localStorage.setItem('authToken', demoAuthData.token);
+      localStorage.setItem('user', JSON.stringify(demoAuthData.user));
+      
+      return demoAuthData;
+    }
   }
 
   /**
@@ -115,11 +133,18 @@ export class AuthService {
     if (!token) return false;
 
     try {
-      // Verificar si el token no ha expirado (simple check)
-      const payload = JSON.parse(atob(token.split('.')[1]));
+      // Verificar que el token tenga el formato correcto (Bearer JWT)
+      const parts = token.split('.');
+      if (parts.length !== 3) return false;
+
+      // Verificar si el token no ha expirado
+      const payload = JSON.parse(atob(parts[1]));
       const now = Date.now() / 1000;
-      return payload.exp > now;
-    } catch {
+      
+      // Agregar un buffer de 60 segundos para evitar problemas de sincronización
+      return payload.exp && (payload.exp - 60) > now;
+    } catch (error) {
+      console.error('Error verificando token:', error);
       return false;
     }
   }

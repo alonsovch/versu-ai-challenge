@@ -1,151 +1,89 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { ChartCard } from '../components/molecules/ChartCard';
-import { DateRangePicker, DateRange } from '../components/molecules/DateRangePicker';
-import { StatsTable, StatsTableColumn } from '../components/molecules/StatsTable';
+import { useAnalytics } from '../hooks/useAnalytics';
 import MetricCard from '../components/molecules/MetricCard';
 import Button from '../components/atoms/Button';
-import { subDays } from 'date-fns';
+import Avatar from '../components/atoms/Avatar';
+import { subDays, format } from 'date-fns';
 import { 
   ChartBarIcon,
   StarIcon,
   ChatBubbleBottomCenterTextIcon
 } from '@heroicons/react/24/outline';
 
-// Datos de demostración para gráficos
-const generateRatingDistribution = () => ({
-  labels: ['⭐ 1', '⭐⭐ 2', '⭐⭐⭐ 3', '⭐⭐⭐⭐ 4', '⭐⭐⭐⭐⭐ 5'],
-  datasets: [{
-    label: 'Conversaciones',
-    data: [5, 12, 45, 78, 124],
-    backgroundColor: [
-      'rgba(239, 68, 68, 0.8)',   // red-500
-      'rgba(245, 101, 101, 0.8)', // red-400
-      'rgba(251, 191, 36, 0.8)',  // amber-400
-      'rgba(34, 197, 94, 0.8)',   // green-500
-      'rgba(22, 163, 74, 0.8)',   // green-600
-    ],
-    borderColor: [
-      'rgba(239, 68, 68, 1)',
-      'rgba(245, 101, 101, 1)',
-      'rgba(251, 191, 36, 1)',
-      'rgba(34, 197, 94, 1)',
-      'rgba(22, 163, 74, 1)',
-    ],
-    borderWidth: 1
-  }]
-});
-
-const generateChannelDistribution = () => ({
-  labels: ['Web', 'WhatsApp', 'Instagram'],
-  datasets: [{
-    label: 'Conversaciones por Canal',
-    data: [156, 89, 67],
-    backgroundColor: [
-      'rgba(59, 130, 246, 0.8)', // blue-500
-      'rgba(34, 197, 94, 0.8)',  // green-500
-      'rgba(168, 85, 247, 0.8)', // purple-500
-    ],
-    borderColor: [
-      'rgba(59, 130, 246, 1)',
-      'rgba(34, 197, 94, 1)',
-      'rgba(168, 85, 247, 1)',
-    ],
-    borderWidth: 2
-  }]
-});
-
-const generateTrendData = () => {
-  const last30Days = Array.from({ length: 30 }, (_, i) => {
-    const date = subDays(new Date(), 29 - i);
-    return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
-  });
-
-  return {
-    labels: last30Days,
-    datasets: [
-      {
-        label: 'Conversaciones',
-        data: Array.from({ length: 30 }, () => Math.floor(Math.random() * 20) + 5),
-        borderColor: 'rgba(59, 130, 246, 1)',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        tension: 0.4,
-        fill: true
-      },
-      {
-        label: 'Satisfacción Promedio',
-        data: Array.from({ length: 30 }, () => (Math.random() * 1.5 + 3.5).toFixed(1)),
-        borderColor: 'rgba(34, 197, 94, 1)',
-        backgroundColor: 'rgba(34, 197, 94, 0.1)',
-        tension: 0.4,
-        yAxisID: 'y1'
-      }
-    ]
-  };
+// Componente DateRangePicker simple
+const DateRangePicker: React.FC<{
+  value: { startDate: string; endDate: string };
+  onChange: (range: { startDate: Date; endDate: Date }) => void;
+}> = ({ value, onChange }) => {
+  return (
+    <div className="flex items-center space-x-2 text-sm">
+      <input
+        type="date"
+        value={value.startDate}
+        onChange={(e) => onChange({
+          startDate: new Date(e.target.value),
+          endDate: new Date(value.endDate)
+        })}
+        className="px-2 py-1 border border-gray-300 rounded text-xs"
+      />
+      <span className="text-gray-500">-</span>
+      <input
+        type="date"
+        value={value.endDate}
+        onChange={(e) => onChange({
+          startDate: new Date(value.startDate),
+          endDate: new Date(e.target.value)
+        })}
+        className="px-2 py-1 border border-gray-300 rounded text-xs"
+      />
+    </div>
+  );
 };
-
-// Datos para la tabla de prompts
-const generatePromptStats = () => [
-  {
-    id: 1,
-    name: 'Saludo inicial amigable',
-    usageCount: 245,
-    averageRating: 4.7,
-    responseTime: 850,
-    category: 'Saludos'
-  },
-  {
-    id: 2,
-    name: 'Resolución de dudas técnicas',
-    usageCount: 189,
-    averageRating: 4.5,
-    responseTime: 1200,
-    category: 'Soporte'
-  },
-  {
-    id: 3,
-    name: 'Información de productos',
-    usageCount: 167,
-    averageRating: 4.3,
-    responseTime: 950,
-    category: 'Ventas'
-  },
-  {
-    id: 4,
-    name: 'Despedida profesional',
-    usageCount: 156,
-    averageRating: 4.6,
-    responseTime: 680,
-    category: 'Despedidas'
-  },
-  {
-    id: 5,
-    name: 'Manejo de quejas',
-    usageCount: 89,
-    averageRating: 3.8,
-    responseTime: 1450,
-    category: 'Soporte'
-  },
-  {
-    id: 6,
-    name: 'Información general',
-    usageCount: 78,
-    averageRating: 4.1,
-    responseTime: 1100,
-    category: 'Información'
-  }
-];
 
 const AnalyticsPage: React.FC = () => {
   const { user, logout } = useAuth();
   
-  // Estado para filtros de fecha
-  const [dateRange, setDateRange] = useState<DateRange>({
-    startDate: subDays(new Date(), 30),
-    endDate: new Date(),
-    label: 'Últimos 30 días'
-  });
+  const [startDate, setStartDate] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
+  const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+
+  // Usar datos reales de la API
+  const { data: analyticsData, isLoading, error } = useAnalytics(startDate, endDate);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando analytics...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600">Error cargando analytics</p>
+          <p className="text-gray-500 text-sm mt-2">Por favor, intenta nuevamente</p>
+        </div>
+      </div>
+    );
+  }
+
+  const analytics = analyticsData || {
+    ratingDistribution: [],
+    channelDistribution: [],
+    topWorstPrompts: []
+  };
+
+  // Calcular totales de los datos reales
+  const totalConversations = analytics.ratingDistribution.reduce((total, item) => total + item.count, 0);
+  const averageRating = analytics.ratingDistribution.length > 0 
+    ? analytics.ratingDistribution.reduce((sum, item) => sum + (item.rating * item.count), 0) / totalConversations 
+    : 0;
 
   const handleLogout = async () => {
     try {
@@ -153,97 +91,6 @@ const AnalyticsPage: React.FC = () => {
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
     }
-  };
-
-  // Datos procesados según el rango de fecha
-  const analyticsData = useMemo(() => {
-    // En una implementación real, estos datos se obtendrían del backend
-    // filtrados por el rango de fechas
-    return {
-      ratingDistribution: generateRatingDistribution(),
-      channelDistribution: generateChannelDistribution(),
-      trendData: generateTrendData(),
-      promptStats: generatePromptStats()
-    };
-  }, [dateRange]);
-
-  // Configuración de columnas para la tabla de prompts
-  const promptColumns: StatsTableColumn[] = [
-    {
-      key: 'name',
-      title: 'Prompt',
-      sortable: true,
-      render: (value, row) => (
-        <div>
-          <div className="font-medium text-gray-900">{value}</div>
-          <div className="text-xs text-gray-500">{row.category}</div>
-        </div>
-      )
-    },
-    {
-      key: 'usageCount',
-      title: 'Usos',
-      sortable: true,
-      align: 'center',
-      render: (value) => (
-        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-          {value}
-        </span>
-      )
-    },
-    {
-      key: 'averageRating',
-      title: 'Rating Promedio',
-      sortable: true,
-      align: 'center',
-      render: (value) => (
-        <div className="flex items-center justify-center space-x-1">
-          <StarIcon className="w-4 h-4 text-yellow-400" />
-          <span className="font-medium">{value}</span>
-        </div>
-      )
-    },
-    {
-      key: 'responseTime',
-      title: 'Tiempo Resp.',
-      sortable: true,
-      align: 'right',
-      render: (value) => (
-        <span className={`font-medium ${value > 1000 ? 'text-red-600' : value > 800 ? 'text-yellow-600' : 'text-green-600'}`}>
-          {value}ms
-        </span>
-      )
-    }
-  ];
-
-  // Opciones para gráfico de tendencias
-  const trendOptions = {
-    responsive: true,
-    scales: {
-      y: {
-        type: 'linear' as const,
-        display: true,
-        position: 'left' as const,
-        title: {
-          display: true,
-          text: 'Conversaciones'
-        }
-      },
-      y1: {
-        type: 'linear' as const,
-        display: true,
-        position: 'right' as const,
-        title: {
-          display: true,
-          text: 'Rating Promedio'
-        },
-        min: 0,
-        max: 5,
-        grid: {
-          drawOnChartArea: false,
-        },
-      },
-    },
   };
 
   return (
@@ -262,14 +109,49 @@ const AnalyticsPage: React.FC = () => {
             </div>
             
             <div className="flex items-center space-x-4">
-              <DateRangePicker
-                value={dateRange}
-                onChange={setDateRange}
-              />
+              <nav className="hidden md:flex space-x-4">
+                <Link
+                  to="/dashboard"
+                  className="text-gray-600 hover:text-gray-900"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  to="/conversations"
+                  className="text-gray-600 hover:text-gray-900"
+                >
+                  Conversaciones
+                </Link>
+                <Link
+                  to="/analytics" 
+                  className="text-blue-600 font-medium"
+                >
+                  Analytics
+                </Link>
+                <Link
+                  to="/settings"
+                  className="text-gray-600 hover:text-gray-900"
+                >
+                  Configuración
+                </Link>
+              </nav>
               
-              <span className="text-sm text-gray-600">
-                {user?.name}
-              </span>
+              <div className="flex items-center space-x-3">
+                <Avatar 
+                  name={user?.name || 'Usuario'} 
+                  src={user?.avatar}
+                  size="md"
+                />
+                <div className="hidden md:block">
+                  <p className="text-sm font-medium text-gray-900">
+                    {user?.name}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {user?.email}
+                  </p>
+                </div>
+              </div>
+              
               <Button
                 variant="secondary"
                 size="sm"
@@ -285,74 +167,190 @@ const AnalyticsPage: React.FC = () => {
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
           
+          {/* Selector de rango de fechas */}
+          <div className="mb-6 bg-white rounded-lg shadow p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-1">
+                  Período de Análisis
+                </h3>
+                <p className="text-sm text-gray-500">
+                  Selecciona el rango de fechas para el análisis de datos
+                </p>
+              </div>
+              <div className="mt-3 sm:mt-0">
+                <DateRangePicker
+                  value={{ startDate, endDate }}
+                  onChange={(newRange) => {
+                    setStartDate(newRange.startDate.toISOString().split('T')[0]);
+                    setEndDate(newRange.endDate.toISOString().split('T')[0]);
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Header con información del período */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-medium text-blue-900">
+                  📊 Mostrando datos para: {startDate} - {endDate}
+                </h3>
+                <p className="text-xs text-blue-700 mt-1">
+                  Análisis de datos • Total: {totalConversations} conversaciones
+                </p>
+              </div>
+              <div className="text-blue-600">
+                📈
+              </div>
+            </div>
+          </div>
+
           {/* Métricas resumidas */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <MetricCard
               title="Total Conversaciones"
-              value="312"
+              value={totalConversations.toString()}
               icon="💬"
               trend={{ value: 12.5, isPositive: true }}
             />
             <MetricCard
               title="Satisfacción Promedio"
-              value="4.2"
+              value={averageRating.toFixed(1)}
               icon="⭐"
               trend={{ value: 0.3, isPositive: true }}
             />
             <MetricCard
-              title="Tiempo Respuesta"
-              value="950ms"
-              icon="⚡"
-              trend={{ value: 5.2, isPositive: false }}
+              title="Prompts con Problemas"
+              value={analytics.topWorstPrompts.length.toString()}
+              icon="🚨"
+              trend={{ value: 2.1, isPositive: false }}
             />
             <MetricCard
-              title="Prompts Activos"
-              value="28"
-              icon="🤖"
+              title="Canales Activos"
+              value={analytics.channelDistribution.length.toString()}
+              icon="📱"
             />
           </div>
 
-          {/* Gráficos principales */}
+          {/* Distribución de Ratings */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            <ChartCard
-              title="Distribución de Ratings"
-              subtitle="Calificaciones de conversaciones en el período seleccionado"
-              type="bar"
-              data={analyticsData.ratingDistribution}
-              height={300}
-            />
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                📊 Distribución de Ratings
+              </h3>
+              <div className="space-y-3">
+                {analytics.ratingDistribution.map((item) => (
+                  <div key={item.rating} className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm">{'⭐'.repeat(item.rating)}</span>
+                      <span className="text-sm text-gray-600">({item.rating} estrellas)</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <div className="bg-gray-200 rounded-full h-2 w-24">
+                        <div 
+                          className="bg-blue-500 h-2 rounded-full"
+                          style={{ width: `${item.percentage}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-sm font-medium">{item.count}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-            <ChartCard
-              title="Conversaciones por Canal"
-              subtitle="Distribución de conversaciones por canal de comunicación"
-              type="doughnut"
-              data={analyticsData.channelDistribution}
-              height={300}
-            />
+            {/* Distribución por Canal */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                📱 Conversaciones por Canal
+              </h3>
+              <div className="space-y-3">
+                {analytics.channelDistribution.map((item) => (
+                  <div key={item.channel} className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-medium">
+                        {item.channel === 'WEB' ? '🌐 Web' : 
+                         item.channel === 'WHATSAPP' ? '📱 WhatsApp' : 
+                         '📷 Instagram'}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <div className="bg-gray-200 rounded-full h-2 w-24">
+                        <div 
+                          className="bg-green-500 h-2 rounded-full"
+                          style={{ width: `${item.percentage}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-sm font-medium">{item.count}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
-          {/* Gráfico de tendencias */}
-          <div className="mb-8">
-            <ChartCard
-              title="Tendencias Temporales"
-              subtitle="Evolución de conversaciones y satisfacción en el tiempo"
-              type="line"
-              data={analyticsData.trendData}
-              options={trendOptions}
-              height={400}
-            />
-          </div>
-
-          {/* Tabla de rendimiento de prompts */}
+          {/* Top Worst Prompts */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
-              <StatsTable
-                title="Rendimiento de Prompts"
-                subtitle="Análisis detallado del rendimiento de cada prompt"
-                columns={promptColumns}
-                data={analyticsData.promptStats}
-                maxHeight={500}
-              />
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  🚨 Prompts con Peor Rendimiento
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Prompt
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Usos
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Rating Promedio
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Conv. Calificadas
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {analytics.topWorstPrompts.map((prompt, index) => (
+                        <tr key={index}>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">
+                              {prompt.prompt}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              {prompt.usageCount}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center space-x-1">
+                              <StarIcon className="w-4 h-4 text-yellow-400" />
+                              <span className={`font-medium ${prompt.averageRating < 3 ? 'text-red-600' : 'text-yellow-600'}`}>
+                                {prompt.averageRating.toFixed(1)}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {prompt.ratedConversations}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {analytics.topWorstPrompts.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      No hay datos de prompts disponibles
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Panel de insights */}
