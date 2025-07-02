@@ -72,6 +72,67 @@ Antes de comenzar, asegúrate de tener instalado:
 
 ## ⚡ Instalación Rápida
 
+### 🚀 Pasos Verificados (Experiencia Completa de Usuario Nuevo)
+
+**Estos comandos han sido probados desde un entorno completamente limpio:**
+
+### 1. Clonar el Repositorio
+```bash
+git clone https://github.com/tu-usuario/versu-ai-challenge.git
+cd versu-ai-challenge
+```
+
+### 2. Configurar Variables de Entorno
+```bash
+# Crear archivo .env con tu API key de Groq
+cp .env.example .env    # Linux/Mac
+copy .env.example .env  # Windows
+
+# Editar .env y agregar tu OPENAI_API_KEY (Groq)
+# Obtén tu key gratis en: https://console.groq.com/
+```
+
+### 3. Construir e Iniciar con Docker
+```bash
+# Construir imágenes (primera vez: ~3 minutos)
+docker-compose build
+
+# Iniciar todos los servicios (primera vez: ~1.5 minutos)  
+docker-compose up -d
+```
+
+### 4. Configurar Base de Datos (Solo Primera Vez)
+```bash
+# Crear tablas con Prisma (~20 segundos)
+docker exec versu-ai-challenge-backend-1 npx prisma db push
+
+# Poblar con datos de ejemplo (~7 segundos)
+docker exec versu-ai-challenge-backend-1 npm run seed
+```
+
+### 5. ¡Listo! Acceder a la Aplicación
+- **🌐 Frontend:** http://localhost:3000
+- **🔌 Backend:** http://localhost:3001/health  
+- **👤 Demo:** demo@versu.ai / demo123
+- **📊 Datos:** 30 conversaciones, 128 mensajes incluidos
+
+### 6. Verificar Estado (Opcional)
+```bash
+# Ver contenedores corriendo
+docker ps
+
+# Ver logs si hay problemas
+docker logs versu-ai-challenge-backend-1
+docker logs versu-ai-challenge-frontend-1
+```
+
+> ✅ **Tiempo total estimado:** 5-10 minutos desde cero
+> 💡 **Funciona sin API key:** Usa respuestas simuladas inteligentes
+
+---
+
+### 📋 Instalación Rápida (Alternativa con Scripts)
+
 ### 1. Clonar el Repositorio
 ```bash
 git clone https://github.com/tu-usuario/versu-ai-challenge.git
