@@ -6,6 +6,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import dotenv from 'dotenv';
 import apiRoutes from './routes';
+import { connectDatabase } from './utils/database';
 
 // Configurar variables de entorno
 dotenv.config();
@@ -95,11 +96,25 @@ app.use('*', (req, res) => {
 });
 
 // Start server
-httpServer.listen(PORT, () => {
-  console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
-  console.log(`📍 Health check: http://localhost:${PORT}/health`);
-  console.log(`🔗 API base: http://localhost:${PORT}/api`);
-  console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
-});
+const startServer = async () => {
+  try {
+    // Conectar a la base de datos con reintentos
+    await connectDatabase();
+    
+    // Iniciar servidor HTTP
+    httpServer.listen(PORT, () => {
+      console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
+      console.log(`📍 Health check: http://localhost:${PORT}/health`);
+      console.log(`🔗 API base: http://localhost:${PORT}/api`);
+      console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+    });
+  } catch (error) {
+    console.error('❌ Error al iniciar el servidor:', error);
+    process.exit(1);
+  }
+};
+
+// Iniciar aplicación
+startServer();
 
 export { io }; 

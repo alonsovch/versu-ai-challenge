@@ -5,14 +5,27 @@ const prisma = new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['query', 'info', 'warn', 'error'] : ['error'],
 });
 
-// Manejo de conexión y desconexión
-export const connectDatabase = async () => {
-  try {
-    await prisma.$connect();
-    console.log('✅ Base de datos conectada correctamente');
-  } catch (error) {
-    console.error('❌ Error al conectar con la base de datos:', error);
-    process.exit(1);
+// Función de espera
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Manejo de conexión con reintentos
+export const connectDatabase = async (maxRetries: number = 10, delay: number = 5000) => {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await prisma.$connect();
+      console.log('✅ Base de datos conectada correctamente');
+      return;
+    } catch (error) {
+      console.log(`⏳ Intento ${attempt}/${maxRetries} - Esperando que la base de datos esté lista...`);
+      
+      if (attempt === maxRetries) {
+        console.error('❌ No se pudo conectar a la base de datos después de todos los intentos:', error);
+        process.exit(1);
+      }
+      
+      console.log(`🔄 Reintentando en ${delay/1000} segundos...`);
+      await sleep(delay);
+    }
   }
 };
 
